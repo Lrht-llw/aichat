@@ -7,6 +7,7 @@ from openai import OpenAI
 load_dotenv()
 
 MAX_MESSAGES = 20
+ARCHIVE_MAX_SUMMARIES = 10
 HISTORY_FILE = "chat_history.json"
 ARCHIVE_FILE = "chat_archive.json"
 USER_CONFIG_FILE = "user.json"
@@ -46,13 +47,9 @@ def load_archive():
             return []
     return []
 
-def save_archive(messages):
+def save_archive(summaries):
     with open(ARCHIVE_FILE, "w", encoding="utf-8") as f:
-        json.dump(messages, f, ensure_ascii=False, indent=2)
-
-def clear_archive():
-    if os.path.exists(ARCHIVE_FILE):
-        os.remove(ARCHIVE_FILE)
+        json.dump(summaries, f, ensure_ascii=False, indent=2)
 
 def summarize_messages(messages):
     if not messages:
@@ -81,8 +78,6 @@ def summarize_messages(messages):
     
     return response.choices[0].message.content
 
-ARCHIVE_THRESHOLD = 10
-
 def trim_messages(messages):
     if len(messages) <= MAX_MESSAGES:
         return messages
@@ -90,27 +85,57 @@ def trim_messages(messages):
     system_msgs = [m for m in messages if m["role"] == "system"]
     other_msgs = [m for m in messages if m["role"] != "system"]
     
-    if len(other_msgs) > MAX_MESSAGES:
-        excess_count = len(other_msgs) - MAX_MESSAGES
-        excess_messages = other_msgs[:excess_count]
-        remaining_messages = other_msgs[excess_count:]
-        
-        archive = load_archive()
-        archive.extend(excess_messages)
-        
-        summary = summarize_messages(archive)
-        if summary:
-            summary_msg = add_timestamp({
-                "role": "user",
-                "content": f"【历史总结】{summary}"
-            })
-            remaining_messages.insert(0, summary_msg)
-        
-        clear_archive()
-        
-        return system_msgs + remaining_messages
+    latest_summary = None
+    if other_msgs and "【历史总结】" in other_msgs[0].get("content", ""):
+        latest_summary = other_msgs[0]
+        other_msgs = other_msgs[1:]
     
-    return system_msgs + other_msgs
+    if len(other_msgs) <= MAX_MESSAGES:
+        return system_msgs + [latest_summary] + other_msgs if latest_summary else system_msgs + other_msgs
+    
+    excess_count = len(other_msgs) - MAX_MESSAGES
+    excess_messages = other_msgs[:excess_count]
+    remaining_messages = other_msgs[excess_count:]
+    
+    archive = load_archive()
+    
+    raw_in_archive = [m for m in archive if "【历史总结】" not in m.get("content", "")]
+    
+    all_raw_messages = raw_in_archive + excess_messages
+    
+    if len(all_raw_messages) >= ARCHIVE_MAX_SUMMARIES:
+        summary = summarize_messages(all_raw_messages)
+        if summary:
+            summary_msg = {
+                "role": "user",
+                "content": f"【历史总结】{summary}",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            existing_summaries = [m for m in archive if "【历史总结】" in m.get("content", "")]
+            
+            if len(existing_summaries) >= ARCHIVE_MAX_SUMMARIES:
+                mega_summary = summarize_messages(existing_summaries + [summary_msg])
+                if mega_summary:
+                    archive = [{
+                        "role": "user",
+                        "content": f"【历史总结】{mega_summary}",
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }]
+                else:
+                    archive = existing_summaries[-(ARCHIVE_MAX_SUMMARIES-1):] + [summary_msg]
+            else:
+                archive = existing_summaries + [summary_msg]
+            
+            save_archive(archive)
+    else:
+        archive.extend(excess_messages)
+        save_archive(archive)
+    
+    if latest_summary:
+        return system_msgs + [latest_summary] + remaining_messages
+    else:
+        return system_msgs + remaining_messages
 
 def prepare_api_messages(messages):
     return [{k: v for k, v in m.items() if k in ["role", "content"]} for m in messages]
@@ -174,27 +199,21 @@ def main():
     print(f"\n欢迎回来，{user_name}！我是 {ai_name}～")
     print("输入 '退出' 退出程序\n")
     
-    archive = load_archive()
-    if archive:
-        print(f"发现 {len(archive)} 条归档记录，正在总结...")
-        summary = summarize_messages(archive)
-        print(f"总结完成：{summary[:50]}...")
-        clear_archive()
-        
-        messages = load_history()
-        summary_msg = add_timestamp({
-            "role": "user",
-            "content": f"【历史总结】{summary}"
-        })
-        messages.insert(0, summary_msg)
-        messages = trim_messages(messages)
-        save_history(messages)
-    else:
-        messages = load_history()
+    messages = load_history()
     
-    if len(messages) > MAX_MESSAGES:
-        messages = messages[-MAX_MESSAGES:]
-        save_history(messages)
+    archive = load_archive()
+    summaries_in_archive = [m for m in archive if "【历史总结】" in m.get("content", "")]
+    
+    if summaries_in_archive:
+        print(f"发现 {len(summaries_in_archive)} 条历史总结")
+    
+    messages = trim_messages(messages)
+    
+    if summaries_in_archive:
+        latest_summary = summaries_in_archive[-1]
+        messages.insert(0, latest_summary)
+    
+    save_history(messages)
     
     if messages:
         print(f"已加载历史记录（共 {len(messages)} 条消息）\n")
@@ -204,7 +223,6 @@ def main():
         
         if user_input == '退出':
             messages.append(add_timestamp({"role": "user", "content": "我要退出了，跟我说再见吧！"}))
-            messages = trim_messages(messages)
             
             try:
                 print(f"{ai_name}: ", end="", flush=True)
