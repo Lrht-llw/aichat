@@ -1,0 +1,7 @@
+chat_history.json
+chat_archive.json
+user.json
+__pycache__/
+*.pyc
+.vscode/
+.idea/
