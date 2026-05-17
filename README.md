@@ -55,11 +55,18 @@ python aichat.py
 
 ## 🔧 自定义配置
 
-在 `aichat.py` 中可以修改：
+在 `aichat.py` 和 `.env` 中可以修改：
 
 ```python
 MAX_MESSAGES = 20  # 主历史最多消息数
 ARCHIVE_MAX_SUMMARIES = 10  # 归档总结数
+```
+
+在 `.env` 中可以配置：
+
+```env
+DEEPSEEK_API_KEY=你的API密钥
+DEEPSEEK_MODEL=deepseek-v4-pro  # 可选：deepseek-v4-pro, deepseek-v4-flash
 ```
 
 你也可以修改 `system_message` 来改变 AI 的性格和说话风格。

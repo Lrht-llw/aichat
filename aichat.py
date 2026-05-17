@@ -8,6 +8,7 @@ load_dotenv()
 
 MAX_MESSAGES = 20
 ARCHIVE_MAX_SUMMARIES = 10
+DEEPSEEK_MODEL = os.environ.get('DEEPSEEK_MODEL')
 HISTORY_FILE = "chat_history.json"
 ARCHIVE_FILE = "chat_archive.json"
 USER_CONFIG_FILE = "user.json"
@@ -70,7 +71,7 @@ def summarize_messages(messages):
     client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     
     response = client.chat.completions.create(
-        model="deepseek-v4-pro",
+        model=DEEPSEEK_MODEL,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=300,
         temperature=0.3
@@ -140,7 +141,7 @@ def trim_messages(messages):
 def prepare_api_messages(messages):
     return [{k: v for k, v in m.items() if k in ["role", "content"]} for m in messages]
 
-def deepseek_chat(messages, model="deepseek-v4-pro", temperature=0.7, max_tokens=None, user_name="", ai_name=""):
+def deepseek_chat(messages, model=DEEPSEEK_MODEL, temperature=0.7, max_tokens=None, user_name="", ai_name=""):
     api_key = os.environ.get('DEEPSEEK_API_KEY')
     if not api_key:
         raise ValueError("请设置 DEEPSEEK_API_KEY 环境变量")
@@ -178,6 +179,9 @@ def add_timestamp(message):
     return message
 
 def main():
+    if not DEEPSEEK_MODEL:
+        raise ValueError("请在 .env 文件中设置 DEEPSEEK_MODEL 配置")
+    
     user_config = load_user_config()
     user_name = user_config.get("user_name", "")
     ai_name = user_config.get("ai_name", "")
