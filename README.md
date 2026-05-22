@@ -12,10 +12,18 @@
 
 ## 🚀 快速开始
 
-### 安装依赖
+### 一键启动（推荐）
+
+直接双击 `start.bat` 文件即可启动，首次运行会自动安装依赖。
+
+### 手动启动
 
 ```bash
+# 安装依赖
 pip install -r requirements.txt
+
+# 运行程序
+python aichat.py
 ```
 
 ### 配置 API Key
@@ -24,17 +32,10 @@ pip install -r requirements.txt
 
 ```env
 DEEPSEEK_API_KEY=你的API密钥
+DEEPSEEK_MODEL=deepseek-v4-pro
 ```
 
 你可以从 [DeepSeek 开放平台](https://platform.deepseek.com/) 获取 API 密钥。
-
-### 运行程序
-
-```bash
-python aichat.py
-```
-
-首次运行时会询问你的名字和AI的名字，之后会自动保存配置。
 
 ## 📁 文件说明
 
