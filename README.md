@@ -1,6 +1,7 @@
 # AIChat - AI 聊天助手
 
-# 桌宠项目开发中，本项目（aichat）暂缓更新
+# 目前项目暂缓更新，原因：现在正在开发于更新，[KfunMusic](https://github.com/Lrht-llw/KfunMusic) 一款音乐播放器，[KfuPet](https://github.com/Lrht-llw/KfuPet) 二次元桌面宠物
+---
 
 一个简单易用的基于 DeepSeek API 的 AI 聊天助手，支持对话历史管理和记忆压缩归档。
 
